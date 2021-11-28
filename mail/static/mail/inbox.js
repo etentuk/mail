@@ -10,30 +10,91 @@ document.addEventListener("DOMContentLoaded", function () {
         .querySelector("#archived")
         .addEventListener("click", () => load_mailbox("archive"));
 
-    document.querySelector("#compose").addEventListener("click", compose_email);
-
-    document.querySelector("form").onsubmit = send_mail;
+    document
+        .querySelector("#compose")
+        .addEventListener("click", (e) => compose_email(e, false));
 
     document
         .querySelector("#email-archive")
         .addEventListener("click", archive_email);
 
+    document
+        .querySelector("#email-reply")
+        .addEventListener("click", (e) => compose_email(e, true));
+
     // By default, load the inbox
     load_mailbox("inbox");
 });
 
-function compose_email() {
+function compose_email(e, isReply) {
     // Show compose view and hide other views
     document.querySelector("#emails-view").style.display = "none";
     document.querySelector("#email-view").style.display = "none";
     document.querySelector("#compose-view").style.display = "block";
 
     // Clear out composition fields
-    document.querySelector("#compose-recipients").value = "";
-    document.querySelector("#compose-subject").value = "";
-    document.querySelector("#compose-body").value = "";
+    if (isReply) {
+        fetch(`emails/${e.target.dataset.id}`)
+            .then((response) => response.json())
+            .then((result) => {
+                document.querySelector("#compose-recipients").value =
+                    result.sender;
+                document.querySelector(
+                    "#compose-subject"
+                ).value = `Re: ${result.subject}`;
+                document.querySelector(
+                    "#compose-body"
+                ).value = `On ${result.timestamp} ${result.sender} wrote: ${result.body}`;
+            })
+            .catch((e) => console.log(e));
+    } else {
+        document.querySelector("#compose-recipients").value = "";
+        document.querySelector("#compose-subject").value = "";
+        document.querySelector("#compose-body").value = "";
+    }
+
     if (document.querySelector("#form-error"))
         document.querySelector("#form-error").style.display = "none";
+
+    document.querySelector("form").onsubmit = function () {
+        const recipients = document.querySelector("#compose-recipients").value;
+        const subject = document.querySelector("#compose-subject").value;
+        const body = document.querySelector("#compose-body").value;
+
+        fetch("/emails", {
+            method: "POST",
+            body: JSON.stringify({
+                recipients: recipients,
+                subject: subject,
+                body: body,
+            }),
+        })
+            .then((response) => response.json())
+            .then((result) => {
+                if (result.message === "Email sent successfully.") {
+                    load_mailbox("sent");
+                } else {
+                    const errorAlert = document.querySelector("#form-error");
+                    if (errorAlert) {
+                        errorAlert.innerHTML = result.error;
+                        errorAlert.style.display = "block";
+                    } else {
+                        document
+                            .querySelector("#compose-form")
+                            .insertAdjacentHTML(
+                                "beforebegin",
+                                `<div class="alert alert-danger" role="alert" id="form-error">
+                    ${result.error}
+                  </div>`
+                            );
+                    }
+                }
+            })
+            .catch((e) => {
+                console.log("e", e);
+            });
+        return false;
+    };
 }
 
 function load_mailbox(mailbox) {
@@ -96,14 +157,23 @@ function viewEmail(id, mailbox) {
             document.querySelector("#email-timestamp").innerText =
                 result.timestamp;
 
+            document.querySelector("#email-reply").dataset.id = result.id;
+
             const archive_element = document.querySelector("#email-archive");
             archive_element.dataset.id = result.id;
             archive_element.dataset.archived = result.archived;
             archive_element.innerText = result.archived
                 ? "Unarchive"
                 : "Archive";
-            if (mailbox === "sent")
+            if (mailbox === "sent") {
                 document.querySelector("#email-archive").style.display = "none";
+                document.querySelector("#email-reply").style.display = "none";
+            } else {
+                document.querySelector("#email-archive").style.display =
+                    "inline-block";
+                document.querySelector("#email-reply").style.display =
+                    "inline-block";
+            }
         })
         .then(() => {
             fetch(`emails/${id}`, {
@@ -126,42 +196,4 @@ function archive_email(e) {
     })
         .then(() => load_mailbox("inbox"))
         .catch((e) => console.log(e));
-}
-
-function send_mail() {
-    const recipients = document.querySelector("#compose-recipients").value;
-    const subject = document.querySelector("#compose-subject").value;
-    const body = document.querySelector("#compose-body").value;
-
-    fetch("/emails", {
-        method: "POST",
-        body: JSON.stringify({
-            recipients: recipients,
-            subject: subject,
-            body: body,
-        }),
-    })
-        .then((response) => response.json())
-        .then((result) => {
-            if (result.message === "Email sent successfully.") {
-                load_mailbox("sent");
-            } else {
-                const errorAlert = document.querySelector("#form-error");
-                if (errorAlert) {
-                    errorAlert.innerHTML = result.error;
-                    errorAlert.style.display = "block";
-                } else {
-                    document.querySelector("#compose-form").insertAdjacentHTML(
-                        "beforebegin",
-                        `<div class="alert alert-danger" role="alert" id="form-error">
-                    ${result.error}
-                  </div>`
-                    );
-                }
-            }
-        })
-        .catch((e) => {
-            console.log("e", e);
-        });
-    return false;
 }
