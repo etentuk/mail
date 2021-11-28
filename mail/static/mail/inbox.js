@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", function () {
         .querySelector("#archived")
         .addEventListener("click", () => load_mailbox("archive"));
 
+    document.querySelector("#compose").addEventListener("click", compose_email);
+
     document.querySelector("form").onsubmit = send_mail;
 
     document
@@ -33,15 +35,12 @@ function compose_email() {
     if (document.querySelector("#form-error"))
         document.querySelector("#form-error").style.display = "none";
 }
-let counter = 0;
 
 function load_mailbox(mailbox) {
-    console.log("called", counter++);
     // Show the mailbox and hide other views
     document.querySelector("#emails-view").style.display = "block";
     document.querySelector("#compose-view").style.display = "none";
     document.querySelector("#email-view").style.display = "none";
-    document.querySelector("#emails-view").innerHTML = "";
 
     // Show the mailbox name
     document.querySelector("#emails-view").innerHTML = `<h3>${
