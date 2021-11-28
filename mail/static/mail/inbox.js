@@ -38,6 +38,31 @@ function load_mailbox(mailbox) {
     document.querySelector("#emails-view").innerHTML = `<h3>${
         mailbox.charAt(0).toUpperCase() + mailbox.slice(1)
     }</h3>`;
+
+    fetch(`/emails/${mailbox}`)
+        .then((response) => response.json())
+        .then((result) => {
+            console.log(mailbox, result);
+            result.forEach((email) => {
+                document
+                    .querySelector("#emails-view")
+                    .insertAdjacentHTML(
+                        "beforeend",
+                        `<button type="button" style="background-color: ${
+                            email.read ? "gray" : "white"
+                        }" class="d-flex list-group-item list-group-item-action row mailList"> <p class="col">${
+                            mailbox === "sent" ? "To" : "From"
+                        }: ${
+                            mailbox === "sent"
+                                ? email.recipients[0]
+                                : email.sender
+                        }</p> <p class="col">${
+                            email.subject
+                        }</p> <p class="col">${email.timestamp}</p></button>`
+                    );
+            });
+        })
+        .catch((e) => console.log(e));
 }
 
 function send_mail(e) {
@@ -75,6 +100,5 @@ function send_mail(e) {
         .catch((e) => {
             console.log("e", e);
         });
-
     return false;
 }
