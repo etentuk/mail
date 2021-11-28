@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 function compose_email() {
     // Show compose view and hide other views
     document.querySelector("#emails-view").style.display = "none";
+    document.querySelector("#email-view").style.display = "none";
     document.querySelector("#compose-view").style.display = "block";
 
     // Clear out composition fields
@@ -33,24 +34,24 @@ function load_mailbox(mailbox) {
     // Show the mailbox and hide other views
     document.querySelector("#emails-view").style.display = "block";
     document.querySelector("#compose-view").style.display = "none";
+    document.querySelector("#email-view").style.display = "none";
 
     // Show the mailbox name
     document.querySelector("#emails-view").innerHTML = `<h3>${
         mailbox.charAt(0).toUpperCase() + mailbox.slice(1)
     }</h3>`;
 
-    fetch(`/emails/${mailbox}`)
+    const emails = fetch(`/emails/${mailbox}`)
         .then((response) => response.json())
         .then((result) => {
-            console.log(mailbox, result);
             result.forEach((email) => {
                 document
                     .querySelector("#emails-view")
                     .insertAdjacentHTML(
                         "beforeend",
-                        `<button type="button" style="background-color: ${
-                            email.read ? "gray" : "white"
-                        }" class="d-flex list-group-item list-group-item-action row mailList"> <p class="col">${
+                        `<div type="button" style="background-color: ${
+                            email.read && mailbox !== "sent" ? "gray" : "white"
+                        }" class="d-flex list-group-item list-group-item-action row" id="email-${email.id.toString()}"> <p class="col">${
                             mailbox === "sent" ? "To" : "From"
                         }: ${
                             mailbox === "sent"
@@ -58,11 +59,43 @@ function load_mailbox(mailbox) {
                                 : email.sender
                         }</p> <p class="col">${
                             email.subject
-                        }</p> <p class="col">${email.timestamp}</p></button>`
+                        }</p> <p class="col">${email.timestamp}</p></div>`
                     );
+
+                document
+                    .querySelector(`#email-${email.id}`)
+                    .addEventListener("click", () => viewEmail(email.id));
             });
         })
         .catch((e) => console.log(e));
+}
+
+function viewEmail(id) {
+    document.querySelector("#emails-view").style.display = "none";
+    document.querySelector("#compose-view").style.display = "none";
+    document.querySelector("#email-view").style.display = "block";
+
+    fetch(`/emails/${id}`)
+        .then((response) => response.json())
+        .then((result) => {
+            document.querySelector("#email-subject").innerText = result.subject;
+            document.querySelector(
+                "#email-recipients"
+            ).innerText = `Recipients: ${result.recipients}`;
+            document.querySelector(
+                "#email-sender"
+            ).innerText = `Sender: ${result.sender}`;
+            document.querySelector("#email-body").innerText = result.body;
+            document.querySelector("#email-timestamp").innerText =
+                result.timestamp;
+        })
+        .catch((e) => console.log(e));
+    fetch(`emails/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+            read: true,
+        }),
+    });
 }
 
 function send_mail(e) {
